@@ -247,7 +247,7 @@ def enter_a_b_c(message):
         if str_quad_trinomial != '':
             strALL += 2 * '\n' + strIF2 + '\n' + str_quad_trinomial
         strALL += 2*'\n' + strIF3 + '\n' + strParabola
-        bot.send_message(message.chat.id, strALL, parse_mode="Markdown")
+        bot.send_message(message.chat.id, strALL)
         print(f'Пользователь {message.chat.first_name}(id={message.chat.id}) '
               f'отправил боту сообщение: "{message.text}". Сообщение успешно.')
     except:
