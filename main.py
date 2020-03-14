@@ -2,6 +2,9 @@ import telebot
 from fractions import Fraction
 from math import sqrt
 from config import *
+import os
+from flask import Flask, request
+import logging
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -87,6 +90,7 @@ def quadratic_trinomial(a, d, x1, x2, strUravnenie):
     return str_quad_trinomial_1
 
 def quadratic_function(x1, x2, a, b, c, d):
+    branch_direction = ''
     if a > 0:
         branch_direction = f'a = {a} > 0, ветви вверх'
     elif a < 0:
@@ -106,6 +110,8 @@ def quadratic_function(x1, x2, a, b, c, d):
 
     crossing_Oy = f'Пересечение с Oy: (0, {c})'
 
+    E = ''
+    max_min_y = ''
     if a > 0:
         E = f'E = [{y_top}; +∞)'
         max_min_y = f'Наименьшее y = {y_top}'
@@ -113,14 +119,49 @@ def quadratic_function(x1, x2, a, b, c, d):
         E = f'E = (-∞; {y_top}]'
         max_min_y = f'Наибольшее y = {y_top}'
 
+    strMonot = ''
+    if a > 0:
+        strMonot = f'(-∞; {x_top}]-промежуток убывания\n  '
+        strMonot += f'[{x_top}; +∞)-промежуток возрастания'
+    elif a < 0:
+        strMonot = f'(-∞; {x_top}]-промежуток возрастания\n  '
+        strMonot += f'[{x_top}; +∞)-промежуток убывания'
+    else:
+        pass
+
+    strPromZnakPost = ''
+    if a > 0:
+        if d > 0:
+            strPromZnakPost = f'y > 0 при x ϵ (-∞; {min(x1, x2)}) υ ({max(x1, x2)}; +∞)\n'
+            strPromZnakPost += f'  y < 0 при x ϵ ({min(x1, x2)}; {max(x1, x2)})'
+        elif d == 0:
+            strPromZnakPost = f'y > 0 при x ϵ (-∞; {x_top}) υ ({x_top}; +∞)'
+        else:
+            strPromZnakPost = f'y > 0 при x ϵ R <=> (-∞; +∞)'
+    elif a < 0:
+        if d > 0:
+            strPromZnakPost = f'y > 0 при x ϵ ({min(x1, x2)}; {max(x1, x2)})\n'
+            strPromZnakPost += f'  y < 0 при x ϵ (-∞; {min(x1, x2)}) υ ({max(x1, x2)}; +∞)'
+        elif d == 0:
+            strPromZnakPost = f'y < 0 при x ϵ (-∞; {x_top}) υ ({x_top}; +∞)'
+        else:
+            strPromZnakPost = f'y < 0 при x ϵ R <=> (-∞; +∞)'
+    else:
+        pass
+
     strAll = f'1){branch_direction}' + '\n'
     strAll += f'2){top_cords}' + '\n'
     strAll += f'3){crossing_Ox}' + '\n'
     strAll += f'4){crossing_Oy}' + '\n'
     strAll += f'5){E}' + '\n'
-    strAll += f'6){max_min_y}'
+    strAll += f'6){max_min_y}\n'
+    strAll += f'7){strMonot}\n'
+    strAll += f'8){strPromZnakPost}'
 
     return strAll
+
+def quadratic_inequality():
+    pass
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
@@ -255,4 +296,31 @@ def enter_a_b_c(message):
               f'отправил боту сообщение: "{message.text}". Получена ошибка.')
         bot.send_message(message.chat.id, errorMessage)
 
-bot.polling(none_stop=True, interval=0)
+if "HEROKU" in list(os.environ.keys()):
+    logger = telebot.logger
+    telebot.logger.setLevel(logging.INFO)
+
+    server = Flask(__name__)
+
+
+    @server.route("/bot", methods=['POST'])
+    def getMessage():
+        bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
+        return "!", 200
+
+
+    @server.route("/")
+    def webhook():
+        bot.remove_webhook()
+        bot.set_webhook(
+            url="https://quadraticequationsbot.herokuapp.com/")  # этот url нужно заменить на url вашего Хероку приложения
+        return "?", 200
+
+
+    server.run(host="0.0.0.0", port=os.environ.get('PORT', 5000))
+else:
+    # если переменной окружения HEROKU нету, значит это запуск с машины разработчика.
+    # Удаляем вебхук на всякий случай, и запускаем с обычным поллингом.
+    bot.remove_webhook()
+    bot.polling(none_stop=True)
+#bot.polling(none_stop=True, interval=0)
